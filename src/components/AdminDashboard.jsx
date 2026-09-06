@@ -4,7 +4,7 @@ import { db, auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Trash2, LogOut, Printer, X, Eye } from 'lucide-react';
+import { Trash2, LogOut, Printer, X, Eye, Download } from 'lucide-react';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -74,6 +74,58 @@ export default function AdminDashboard() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExportCSV = () => {
+    if (surveys.length === 0) {
+      alert("No data to export.");
+      return;
+    }
+
+    const headers = [
+      "Date Submitted", "Name", "Tenure", "Training Rating", 
+      "Goal Rank 1", "Goal Rank 2", "Goal Rank 3", "Goal Rank 4", "Goal Rank 5",
+      "Training Type Rank 1", "Training Type Rank 2", "Training Type Rank 3", "Training Type Rank 4", "Training Type Rank 5",
+      "Feedback on Recent Training", "Skills Wanted (2027)", "Other Skills", 
+      "Saturday Scenarios", "1-on-1 Support", "Open Feedback"
+    ];
+
+    const escapeCSV = (str) => {
+      if (str === null || str === undefined) return '';
+      const stringified = String(str);
+      if (stringified.includes(',') || stringified.includes('"') || stringified.includes('\n')) {
+        return `"${stringified.replace(/"/g, '""')}"`;
+      }
+      return stringified;
+    };
+
+    const rows = surveys.map(s => {
+      const date = s.submittedAt ? new Date(s.submittedAt.seconds * 1000).toLocaleString() : 'N/A';
+      return [
+        escapeCSV(date),
+        escapeCSV(s.name),
+        escapeCSV(s.tenure),
+        escapeCSV(s.trainingRating),
+        escapeCSV(s.goalsRank1), escapeCSV(s.goalsRank2), escapeCSV(s.goalsRank3), escapeCSV(s.goalsRank4), escapeCSV(s.goalsRank5),
+        escapeCSV(s.trainingTypesRank1), escapeCSV(s.trainingTypesRank2), escapeCSV(s.trainingTypesRank3), escapeCSV(s.trainingTypesRank4), escapeCSV(s.trainingTypesRank5),
+        escapeCSV(s.feedbackRecent),
+        escapeCSV(Array.isArray(s.skillsMoreTime) ? s.skillsMoreTime.join('; ') : s.skillsMoreTime),
+        escapeCSV(s.skillsMoreTimeOther),
+        escapeCSV(s.saturdayScenarios),
+        escapeCSV(s.oneOnOne),
+        escapeCSV(s.openFeedback)
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `FireTrainingSurvey_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // ----------------------------------------------------
@@ -189,13 +241,17 @@ export default function AdminDashboard() {
       <nav className="bg-red-600 shadow-md p-4 flex justify-between items-center text-white print:hidden">
         <h1 className="text-xl font-bold">Survey Admin Dashboard</h1>
         <div className="flex space-x-4">
+          <button onClick={handleExportCSV} className="flex items-center space-x-2 bg-white text-red-600 hover:bg-gray-100 px-4 py-2 rounded font-semibold transition-colors">
+            <Download size={18} />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
           <button onClick={handlePrint} className="flex items-center space-x-2 bg-white text-red-600 hover:bg-gray-100 px-4 py-2 rounded font-semibold transition-colors">
             <Printer size={18} />
-            <span>Print / PDF</span>
+            <span className="hidden sm:inline">Print / PDF</span>
           </button>
           <button onClick={handleLogout} className="flex items-center space-x-2 bg-red-700 hover:bg-red-800 px-4 py-2 rounded transition-colors">
             <LogOut size={18} />
-            <span>Logout</span>
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </nav>
